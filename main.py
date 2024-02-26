@@ -12,18 +12,20 @@ import supabase as sp
 from supabase import ClientOptions
 import konlpy as kp
 import os
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 import time
 import pandas as pd
 
 # supabase의 url과 key를 환경변수로 설정합니다.
-load_dotenv()
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-SUPABASE_SERVICE_KEY =  os.getenv("SUPABASE_SERVICE_KEY")
+# load_dotenv()
+# SUPABASE_URL = os.getenv("SUPABASE_URL")
+# SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+# SUPABASE_SERVICE_KEY =  os.getenv("SUPABASE_SERVICE_KEY")
+
+# client = sp.create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # supabase의 클라이언트를 생성합니다.
-client = sp.create_client(SUPABASE_URL, SUPABASE_KEY)
+client = sp.create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 # 채용공고의 목록을 조회하는 함수를 정의합니다.
 # 채용공고의 segment를 조회하는 함수를 정의합니다.
@@ -361,7 +363,10 @@ step4.write("기능 미구현. 수정 및 삭제는 DB에서만 가능.")
 alarmURL.write("[예시]\n01012341234,821012341234,...")
 phone_numbers = alarmURL.text_area("위의 예시와 같이 입력해주세요.")
 if len(phone_numbers) > 0 and alarmURL.button("등록"):
-    admin = sp.create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY, ClientOptions(auto_refresh_token=False, persist_session=False))
+    # 테스트
+    # admin = sp.create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY, ClientOptions(auto_refresh_token=False, persist_session=False))
+    # 배포
+    admin = sp.create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_SERVICE_KEY"], ClientOptions(auto_refresh_token=False, persist_session=False))
     phone_list = phone_numbers.split(",")
     phone_list = [phone.strip().replace("-","").replace("+","") for phone in phone_list]
     user_dict = {} # id와 전화 번호를 저장할 딕셔너리
