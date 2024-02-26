@@ -1,6 +1,6 @@
 supabase
 konlpy
 streamlit
-streamlit-tree
+streamlit_tree_select
 
 # dotenv
