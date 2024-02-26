@@ -1,0 +1,6 @@
+supabase
+konlpy
+streamlit
+streamlit-tree
+
+# dotenv
