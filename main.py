@@ -12,20 +12,24 @@ import supabase as sp
 from supabase import ClientOptions
 import konlpy as kp
 import os
-# from dotenv import load_dotenv
+from dotenv import load_dotenv
 import time
 import pandas as pd
+import random
+import string
+# gdshortener 라이브러리를 임포트합니다.
+import gdshortener
 
 # supabase의 url과 key를 환경변수로 설정합니다.
-# load_dotenv()
-# SUPABASE_URL = os.getenv("SUPABASE_URL")
-# SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-# SUPABASE_SERVICE_KEY =  os.getenv("SUPABASE_SERVICE_KEY")
-
-# client = sp.create_client(SUPABASE_URL, SUPABASE_KEY)
-
 # supabase의 클라이언트를 생성합니다.
-client = sp.create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+#테스트
+load_dotenv()
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_SERVICE_KEY =  os.getenv("SUPABASE_SERVICE_KEY")
+client = sp.create_client(SUPABASE_URL, SUPABASE_KEY)
+#배포
+# client = sp.create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 # 채용공고의 목록을 조회하는 함수를 정의합니다.
 # 채용공고의 segment를 조회하는 함수를 정의합니다.
@@ -63,9 +67,10 @@ def get_questions(keywords):
     # map 테이블에서 Search_Keyword가 키워드와 일치하는 Skill_ExperienceID와 Keyword를 조회합니다.
     map = client.table("match_map").select("*").execute().data
     map_dict = {item['skill_experienceid']: item for item in map}
-    all_map = convert_to_tree(map, map_dict)
+    all_map = convert_to_tree(map, map_dict,False)
+    new_all_map = convert_to_tree(map, map_dict,True)
     # 결과에서 Skill_ExperienceID와 Keyword만 추출하여 딕셔너리로 반환합니다.
-    questions = {"all_map": all_map, "searched_map": filter_tree_data(all_map,keywords), "map_dict" : map_dict}
+    questions = {"all_map": all_map,"new_all_map":new_all_map,"searched_map": filter_tree_data(all_map,keywords), "map_dict" : map_dict}
     return questions
 
 
@@ -93,42 +98,69 @@ def get_keywords(jd_require, jd_optional):
     optional_keywords = list(set(optional_keywords))
     return required_keywords, optional_keywords
 
+# def get_random_string(length):
+#     # choose from all lowercase letter
+#     letters = string.ascii_lowercase
+#     result_str = ''.join(random.choice(letters) for i in range(length))
+#     return result_str
+
 # input_data를 tree_data로 변환하는 함수
-def convert_to_tree(input_data, data_dict):
+exist_id = []
+new_tree_zero_dict = {}
+def check_already_exist(id):
+    if str(id) in exist_id:
+        return check_already_exist(str(id)+"'")
+    else:
+        exist_id.append(str(id))
+        return str(id)
+
+def convert_to_tree(input_data, data_dict,new_tree:bool):
   # skill_experienceid를 키로 하고 나머지 정보를 값으로 하는 딕셔너리 생성
   # tree_data를 담을 빈 리스트 생성
+  exist_id = []
+  new_tree_zero_dict = {}
   tree_data = []
   # input_data의 각 요소에 대해 반복
   for item in input_data:
     # sub_skill_experience_list가 None이거나 비어있는 경우
     if not item['parent_skill_experience_list']:
       # label에 keyword, value에 skill_experienceid를 넣은 딕셔너리 생성
-      node = {'label': item['keyword'], 'value': item['skill_experienceid'], 'title':item['keyword'],'className':item['type'], 'search_keyword': item['search_keyword']}
+      node = {'label': item['keyword'], 'value': check_already_exist(item['skill_experienceid']), 'title':item['keyword'],'className':item['type'], 'search_keyword': item['search_keyword']}
       # node에 children을 추가하는 함수 호출
-      add_children(node, data_dict)
+      add_children(node, data_dict, new_tree)
       # tree_data에 추가
       tree_data.append(node)
   # tree_data를 반환
   return tree_data
 
 # node에 children을 추가하는 함수
-def add_children(node, data_dict):
+def add_children(node, data_dict,new_tree:bool):
   # data_dict에서 node의 skill_experienceid를 부모로 가지는 요소들을 찾음
   # data_dict[sub_id]['parent_skill_experience_list']가 None이 아닌지 확인하는 조건을 추가
-  children = [data_dict[sub_id] for sub_id in data_dict if data_dict[sub_id]['parent_skill_experience_list'] and node['value'] in data_dict[sub_id]['parent_skill_experience_list']]
+  children = [data_dict[sub_id] for sub_id in data_dict if data_dict[sub_id]['parent_skill_experience_list'] and int(node['value'].split("'")[0]) in data_dict[sub_id]['parent_skill_experience_list']]
+  
   # children이 비어있지 않은 경우
   if children:
     # children을 담을 빈 리스트 생성
     child_nodes = []
     # children의 각 요소에 대해 반복
     for item in children:
-      # label에 keyword, value에 skill_experienceid를 넣은 딕셔너리 생성
-      child_node = {'label': item['keyword'], 'value': item['skill_experienceid'], 'title':item['keyword'],'className':item['type'], 'search_keyword': item['search_keyword']}
-      # child_node에 children을 추가하는 함수 재귀적으로 호출
-      add_children(child_node, data_dict)
-      # child_nodes에 추가
-      child_nodes.append(child_node)
-    # node에 children 키와 값으로 child_nodes 리스트를 추가
+        # label에 keyword, value에 skill_experienceid를 넣은 딕셔너리 생성
+        child_node = {'label': item['keyword'], 'value': check_already_exist(item['skill_experienceid']), 'title':item['keyword'],'className':item['type'], 'search_keyword': item['search_keyword']}
+        # child_node에 children을 추가하는 함수 재귀적으로 호출
+        add_children(child_node, data_dict, new_tree)
+        # child_nodes에 추가
+        child_nodes.append(child_node)
+        # node에 children 키와 값으로 child_nodes 리스트를 추가
+        if new_tree:
+            if "--이곳에 추가--" in [item["label"] for item in child_nodes]:
+               for item in child_nodes:
+                  if item["label"] == "--이곳에 추가--":
+                    child_nodes.remove(item)
+            temp_val = check_already_exist(0)
+            child_nodes.append({'label': "--이곳에 추가--", 'value': temp_val,'search_keyword':[]})
+            new_tree_zero_dict[temp_val] = node["value"]
+               
     node['children'] = child_nodes
 
 # tree_data를 필터링하는 함수
@@ -219,7 +251,8 @@ if "jds" in st.session_state:
     def save_jd_map(checked):
     #    keywords, qualification_keywords, preference_keywords
         result = True
-        for this_id in checked:
+        delete_duplicated = list(set([int(item.split("'")[0]) for item in checked]))
+        for this_id in delete_duplicated:
             # 검색 키워드 업데이트
             search_keywords = client.table("match_map").select("search_keyword").eq("skill_experienceid", this_id).single().execute().data["search_keyword"]
             if not set(keywords).issubset(search_keywords):
@@ -232,9 +265,9 @@ if "jds" in st.session_state:
             type = ""
             if set(keywords).intersection(required_keywords):
                 # len(set(list1).intersection(list2))
-               type = "required"
+                type = "required"
             else:
-               type = "optional"
+                type = "optional"
             this_jd_id = st.session_state.jd_id.split("//")[0]
             print({'id': str(st.session_state.jd_id)+"_"+str(this_id), 'job_postingid': this_jd_id, 'skill_experienceid':this_id, 'type':type})
             client.table("match_jd_map").upsert({'id': this_jd_id+"_"+str(this_id), 'job_postingid': this_jd_id, 'skill_experienceid':this_id, 'type':type}).execute()
@@ -255,8 +288,9 @@ if "jds" in st.session_state:
         # 테이블에서 예상 질문을 선택하면, 필수와 선택으로 구분하여 트리구조로 표시합니
         map_col1.write("검색을 통한 예상 질문입니다. (선택시, 자동 저장)")
         # Create nodes to display
-        tree_data = questions["searched_map"]
-        all_tree_data = questions["all_map"]
+        st.session_state.tree_data = questions["searched_map"]
+        st.session_state.all_tree_data = questions["all_map"]
+        st.session_state.new_all_tree_data = questions["new_all_map"]
         tree_container = map_col1.container(border=True)
 
         map_col2.write("검색에 없을 경우, 신규 생성 전에 한번더 확인하세요. (선택시, 자동 저장)")
@@ -266,27 +300,11 @@ if "jds" in st.session_state:
         map_col3.write("하위/신규 질문을 추가하려면, 트리구조에서 간선이 1개(1촌 관계)인 상위 keyword를 선택하고, 아래의 입력창에 keyword를 작성하세요.")
         all_new_tree_container = map_col3.container(border=True)
         sub_question = map_col3.text_input("하위 keyword")
-        question_type = map_col3.radio("질문의 종류를 선택하세요.", ["exprience (~한 적 있다.)", "worked (~업무를 했다.)"])
-        if map_col3.button("추가하기") and sub_question and question_type and keywords:
-            # map 테이블에 하위 질문을 추가하는 쿼리를 작성합니다.
-            query = client.table("match_map").insert({"Keyword": sub_question, "Type": question_type, "parent_skill_experience_list": [], "And_Condition_List": []})
-            # 쿼리를 실행하고, 결과를 받습니다.
-            result = query.execute()
-            # 결과가 성공적이면, 트리구조에 하위 질문을 추가합니다.
-            if result["status_code"] == 201:
-                map_col3.success("하위 질문이 추가되었습니다.")
-                # tree_data["nodes"][0 if question_type == "필수" else 1]["nodes"].append({"text": sub_question, "nodes": []})
-                # st_tree.tree("트리구조", tree_data)
-            # 결과가 실패하면, 에러 메시지를 보여줍니다.
-            else:
-                map_col3.error("하위 질문을 추가하는데 실패했습니다.")
-                map_col3.write(result["error"])
-        else:
-            map_col3.error("입력하지 않은 필드가 있습니다.")
+        question_type = map_col3.radio("질문의 종류를 선택하세요.", ["experience//~한 적 있다.", "worked//~업무를 했다."])
         def check_and_condition(checked):
             new_id = []
             for checked_id in checked:
-               this_map = questions["map_dict"][int(checked_id)]
+               this_map = questions["map_dict"][int(checked_id.split("'")[0])]
                if this_map["and_condition_list"] and len(this_map["and_condition_list"])>0:
                     new_id = new_id+[str(id) for id in this_map["and_condition_list"]]
             if len(new_id) > 0:
@@ -301,7 +319,7 @@ if "jds" in st.session_state:
                 st.session_state.search_checked = []
             if "search_expanded" not in st.session_state:
                 st.session_state.search_expanded = []
-            tree_selection = tree_select(tree_data,key=f"search_{st.session_state.search_checked}",checked=st.session_state.search_checked, expanded=st.session_state.search_expanded)
+            tree_selection = tree_select(st.session_state.tree_data,key=f"search_{st.session_state.search_checked}_{st.session_state.tree_data}",checked=st.session_state.search_checked, expanded=st.session_state.search_expanded)
             
             new_checked = check_and_condition(tree_selection["checked"])
             st.session_state.search_expanded = tree_selection["expanded"]
@@ -329,7 +347,7 @@ if "jds" in st.session_state:
             if "all_expanded" not in st.session_state:
                 st.session_state.all_expanded = []
             # f"all_{len(st.session_state.all_checked)}"
-            tree_selection = tree_select(all_tree_data,key=f"all_{st.session_state.all_checked}",checked=st.session_state.all_checked, expanded=st.session_state.all_expanded)
+            tree_selection = tree_select(st.session_state.all_tree_data,key=f"all_{st.session_state.all_checked}_{st.session_state.all_tree_data}",checked=st.session_state.all_checked, expanded=st.session_state.all_expanded)
             
             new_checked = check_and_condition(tree_selection["checked"])
             st.session_state.all_expanded = tree_selection["expanded"]
@@ -356,17 +374,52 @@ if "jds" in st.session_state:
                   
         with all_new_tree_container:
             st.write("전체 목록")
-            tree_selection = tree_select(all_tree_data,key="all_new")
+            
+            if "new_all_expanded" not in st.session_state:
+                st.session_state.new_all_expanded = []
+            tree_selection = tree_select(st.session_state.new_all_tree_data,key=f"all_new_{(st.session_state.new_all_tree_data)}",expanded=st.session_state.new_all_expanded)
+            st.session_state.new_all_expanded = tree_selection["expanded"]
+            if map_col3.button("추가하기") and sub_question and question_type and keywords:
+                # map 테이블에 하위 질문을 추가하는 쿼리를 작성합니다.
+                temp = tree_selection["checked"]
+                for item in tree_selection["checked"]:
+                   if item.split("'")[0] == "0":
+                      temp.remove(item)
+                      temp.append(new_tree_zero_dict[item])
+                checked = list(set([int(item.split("'")[0]) for item in temp]))
+                print(checked)
+                input_data = {"keyword": sub_question, "type": question_type.split("//")[0],"search_keyword":[], "parent_skill_experience_list": checked, "and_condition_list": []}
+                print(tree_selection["checked"])
+                if len(tree_selection["checked"]) > 1:
+                   input_data["and_condition_list"] = checked
+                query = client.table("match_map").insert(input_data)
+                # 쿼리를 실행하고, 결과를 받습니다.
+                result = query.execute()
+                # 결과가 성공적이면, 트리구조에 하위 질문을 추가합니다.
+                print(result.data[0]["skill_experienceid"])
+                save_jd_map([str(result.data[0]["skill_experienceid"])])
+                map_col3.success("하위 질문이 추가되었습니다.")
+                tree_selection["checked"] = []
+                questions = get_questions(keywords)
+                
+                st.session_state.tree_data = questions["searched_map"]
+                st.session_state.all_tree_data = questions["all_map"]
+                st.session_state.new_all_tree_data = questions["new_all_map"]
+                st.session_state.new_all_tree_data = []
+                st.session_state.new_all_expanded += temp
+                st.rerun()
+            else:
+                map_col3.error("입력하지 않은 필드가 있습니다.")
 
 step4.write("기능 미구현. 수정 및 삭제는 DB에서만 가능.")
 
-alarmURL.write("[예시]\n01012341234,821012341234,...")
+alarmURL.write("[예시]\n821012341234,821012341234,...")
 phone_numbers = alarmURL.text_area("위의 예시와 같이 입력해주세요.")
 if len(phone_numbers) > 0 and alarmURL.button("등록"):
     # 테스트
-    # admin = sp.create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY, ClientOptions(auto_refresh_token=False, persist_session=False))
+    admin = sp.create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY, ClientOptions(auto_refresh_token=False, persist_session=False))
     # 배포
-    admin = sp.create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_SERVICE_KEY"], ClientOptions(auto_refresh_token=False, persist_session=False))
+    # admin = sp.create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_SERVICE_KEY"], ClientOptions(auto_refresh_token=False, persist_session=False))
     phone_list = phone_numbers.split(",")
     phone_list = [phone.strip().replace("-","").replace("+","") for phone in phone_list]
     user_dict = {} # id와 전화 번호를 저장할 딕셔너리
@@ -388,16 +441,31 @@ if len(phone_numbers) > 0 and alarmURL.button("등록"):
             except Exception:
                 need_to_find.append(phone)
     
-    if len(need_to_find) > 0:
+    page = 1
+    while len(need_to_find) > 0:
        all_users = {user.phone : user.id for user in admin.auth.admin.list_users(
-          page =1,
-          per_page=99999999
+          page = page,
+          per_page=100
        )}
        for item in need_to_find:
-          user_dict[all_users[item]] = item
+          if item in all_users.keys():
+            user_dict[all_users[item]] = item
+            need_to_find.remove(item)
+       page += 1
         
         # user_dict[user.data["id"]] = phone # 딕셔너리에 id와 전화 번호 저장
-    df = pd.DataFrame(user_dict.items(), columns=["id", "phone_number"]) # 데이터프레임 생성 ,"email","now_position","work_year","total_work_year"
+    user_dict_list = []
+    for user_key in user_dict.keys():
+       # is.gd URL shortener 객체를 생성합니다.
+        # shortener = pygdshort.shorten(url)
+        s = gdshortener.ISGDShortener()
+
+        # URL을 축약하고 출력합니다.
+        short_url = s.shorten("https://jiwon.in10s.co/app?appPath=root&queryKey1=redirect&queryValue1=myNoti&queryKey2=param1&queryValue2="+user_key)
+        print(short_url[0])
+        user_dict_list.append({"id":user_key,"phone_number":user_dict[user_key],"url":"https://www.in10s.co?alarmKey="+short_url[0].replace("https://is.gd/","")})
+        # print(short_url)
+    df = pd.DataFrame(user_dict_list) # 데이터프레임 생성 ,"email","now_position","work_year","total_work_year"
     st.download_button("csv 파일 다운로드",df.to_csv(index=False),"data.csv","text/csv") # 다운로드 버튼 생성
     st.empty() # text_area 비우기
 

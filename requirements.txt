@@ -2,5 +2,7 @@ supabase
 konlpy
 streamlit
 streamlit_tree_select
+# pygdshort
+gdshortener
 
 # dotenv
