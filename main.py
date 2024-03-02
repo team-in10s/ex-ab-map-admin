@@ -137,6 +137,7 @@ def check_same_id(checked):
   # 결과 리스트를 반환합니다.
   return result
 
+tail = {"not_question":"","experience": " 경험이 있나요?", "tool": " 업무상 활용 경험이 있나요?", "document": " 문서 작성 경험이 있나요?", "sector":" 업계에서의 프로젝트 또는 업무 경험이 있나요?", "startup":" 스타트업에서 프로젝트 또는 업무 경험이 있나요?"}
 def convert_to_tree(input_data, data_dict,new_tree:bool):
   # skill_experienceid를 키로 하고 나머지 정보를 값으로 하는 딕셔너리 생성
   # tree_data를 담을 빈 리스트 생성
@@ -149,7 +150,6 @@ def convert_to_tree(input_data, data_dict,new_tree:bool):
     if not item['parent_skill_experience_list']:
       # label에 keyword, value에 skill_experienceid를 넣은 딕셔너리 생성
       # 어미 추가
-      tail = {"non_question":"키워드아님.","experience": "경험이 있나요?", "tool": "업무상 활용 경험이 있나요?", "document": "문서 작성 경험이 있나요?", "sector":"업계에서의 프로젝트 또는 업무 경험이 있나요?", "startup":"스타트업에서 프로젝트 또는 업무 경험이 있나요?"}
       node = {'label': "["+item['keyword']+"]"+tail[item['type']], 'value': check_already_exist(item['skill_experienceid']), 'title':item['keyword'],'className':item['type'], 'search_keyword': item['search_keyword']}
       # node에 children을 추가하는 함수 호출
       add_children(node, data_dict, new_tree)
@@ -171,7 +171,7 @@ def add_children(node, data_dict,new_tree:bool):
     # children의 각 요소에 대해 반복
     for item in children:
         # label에 keyword, value에 skill_experienceid를 넣은 딕셔너리 생성
-        child_node = {'label': item['keyword'], 'value': check_already_exist(item['skill_experienceid']), 'title':item['keyword'],'className':item['type'], 'search_keyword': item['search_keyword']}
+        child_node = {'label': "["+item['keyword']+"]"+tail[item['type']], 'value': check_already_exist(item['skill_experienceid']), 'title':item['keyword'],'className':item['type'], 'search_keyword': item['search_keyword']}
         # child_node에 children을 추가하는 함수 재귀적으로 호출
         add_children(child_node, data_dict, new_tree)
         # child_nodes에 추가
@@ -282,23 +282,25 @@ if "jds" in st.session_state:
         delete_duplicated = list(set([int(item.split("'")[0]) for item in checked]))
         for this_id in delete_duplicated:
             # 검색 키워드 업데이트
-            search_keywords = client.table("match_map").select("search_keyword").eq("skill_experienceid", this_id).single().execute().data["search_keyword"]
-            if not set(keywords).issubset(search_keywords):
-                update_search_keyword = client.table("match_map").update({"search_keyword":list(set(search_keywords + keywords))}).eq("skill_experienceid", this_id).execute()
-                print(update_search_keyword)
-                if "error" in update_search_keyword:
-                    print(update_search_keyword["error"])
-                    result = False
-            # jd-map 추가
-            type = ""
-            if set(keywords).intersection(required_keywords):
-                # len(set(list1).intersection(list2))
-                type = "required"
-            else:
-                type = "optional"
-            this_jd_id = st.session_state.jd_id.split("//")[0]
-            print({'id': str(st.session_state.jd_id)+"_"+str(this_id), 'job_postingid': this_jd_id, 'skill_experienceid':this_id, 'type':type})
-            client.table("match_jd_map").upsert({'id': this_jd_id+"_"+str(this_id), 'job_postingid': this_jd_id, 'skill_experienceid':this_id, 'type':type}).execute()
+            map_result = client.table("match_map").select("*").eq("skill_experienceid", this_id).single().execute().data
+            if map_result["type"] != "not_question":
+                search_keywords = map_result["search_keyword"]
+                if not set(keywords).issubset(search_keywords):
+                    update_search_keyword = client.table("match_map").update({"search_keyword":list(set(search_keywords + keywords))}).eq("skill_experienceid", this_id).execute()
+                    print(update_search_keyword)
+                    if "error" in update_search_keyword:
+                        print(update_search_keyword["error"])
+                        result = False
+                # jd-map 추가
+                type = ""
+                if set(keywords).intersection(required_keywords):
+                    # len(set(list1).intersection(list2))
+                    type = "required"
+                else:
+                    type = "optional"
+                this_jd_id = st.session_state.jd_id.split("//")[0]
+                print({'id': str(st.session_state.jd_id)+"_"+str(this_id), 'job_postingid': this_jd_id, 'skill_experienceid':this_id, 'type':type})
+                client.table("match_jd_map").upsert({'id': this_jd_id+"_"+str(this_id), 'job_postingid': this_jd_id, 'skill_experienceid':this_id, 'type':type}).execute()
         return result
 
     # 키워드를 선택하면, 해당 키워드가 포함된 부분을 색상으로 하이라이트하고, 키워드에 해당하는 예상 질문 목록을 조회하는 함수를 호출하고, 결과를 테이블로 표시합니다.:
@@ -328,7 +330,7 @@ if "jds" in st.session_state:
         map_col3.write("하위/신규 질문을 추가하려면, 트리구조에서 간선이 1개(1촌 관계)인 상위 keyword를 선택하고, 아래의 입력창에 keyword를 작성하세요.")
         all_new_tree_container = map_col3.container(border=True)
         sub_question = map_col3.text_input("하위 keyword")
-        question_type = map_col3.radio("질문의 종류를 선택하세요.", ["non_question//"+"키워드아님.","experience//"+sub_question+" 경험이 있나요?", "tool//"+sub_question+", 업무상 활용 경험이 있나요?", "document//"+sub_question+" 문서 작성 경험이 있나요?", "sector//"+sub_question+" 업계에서의 프로젝트 또는 업무 경험이 있나요?", "startup//"+sub_question+" 스타트업에서 프로젝트 또는 업무 경험이 있나요?"])
+        question_type = map_col3.radio("질문의 종류를 선택하세요.", ["not_question//"+"키워드아님.","experience//"+sub_question+" 경험이 있나요?", "tool//"+sub_question+", 업무상 활용 경험이 있나요?", "document//"+sub_question+" 문서 작성 경험이 있나요?", "sector//"+sub_question+" 업계에서의 프로젝트 또는 업무 경험이 있나요?", "startup//"+sub_question+" 스타트업에서 프로젝트 또는 업무 경험이 있나요?"])
         def check_and_condition(checked):
             new_id = []
             for checked_id in [int(item.split("'")[0]) for item in checked if item.split("'")[0]!="0"]:
