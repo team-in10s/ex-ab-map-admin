@@ -148,7 +148,9 @@ def convert_to_tree(input_data, data_dict,new_tree:bool):
     # sub_skill_experience_list가 None이거나 비어있는 경우
     if not item['parent_skill_experience_list']:
       # label에 keyword, value에 skill_experienceid를 넣은 딕셔너리 생성
-      node = {'label': item['keyword'], 'value': check_already_exist(item['skill_experienceid']), 'title':item['keyword'],'className':item['type'], 'search_keyword': item['search_keyword']}
+      # 어미 추가
+      tail = {"non_question":"키워드아님.","experience": "경험이 있나요?", "tool": "업무상 활용 경험이 있나요?", "document": "문서 작성 경험이 있나요?", "sector":"업계에서의 프로젝트 또는 업무 경험이 있나요?", "startup":"스타트업에서 프로젝트 또는 업무 경험이 있나요?"}
+      node = {'label': "["+item['keyword']+"]"+tail[item['type']], 'value': check_already_exist(item['skill_experienceid']), 'title':item['keyword'],'className':item['type'], 'search_keyword': item['search_keyword']}
       # node에 children을 추가하는 함수 호출
       add_children(node, data_dict, new_tree)
       # tree_data에 추가
@@ -326,7 +328,7 @@ if "jds" in st.session_state:
         map_col3.write("하위/신규 질문을 추가하려면, 트리구조에서 간선이 1개(1촌 관계)인 상위 keyword를 선택하고, 아래의 입력창에 keyword를 작성하세요.")
         all_new_tree_container = map_col3.container(border=True)
         sub_question = map_col3.text_input("하위 keyword")
-        question_type = map_col3.radio("질문의 종류를 선택하세요.", ["experience//"+sub_question+" 경험이 있나요?", "tool//"+sub_question+", 업무상 활용 경험이 있나요?", "document//"+sub_question+" 문서 작성 경험이 있나요?", "sector//"+sub_question+" 업계에서의 프로젝트 또는 업무 경험이 있나요?", "startup//"+sub_question+" 스타트업에서 프로젝트 또는 업무 경험이 있나요?"])
+        question_type = map_col3.radio("질문의 종류를 선택하세요.", ["non_question//"+"키워드아님.","experience//"+sub_question+" 경험이 있나요?", "tool//"+sub_question+", 업무상 활용 경험이 있나요?", "document//"+sub_question+" 문서 작성 경험이 있나요?", "sector//"+sub_question+" 업계에서의 프로젝트 또는 업무 경험이 있나요?", "startup//"+sub_question+" 스타트업에서 프로젝트 또는 업무 경험이 있나요?"])
         def check_and_condition(checked):
             new_id = []
             for checked_id in [int(item.split("'")[0]) for item in checked if item.split("'")[0]!="0"]:
