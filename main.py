@@ -104,13 +104,13 @@ def get_keywords(jd_require, jd_optional):
         required_sentences = jd_require.split("\n")
         # 각 문장을 형태소 분석기로 분리하고, 명사와 영어만 키워드로 추출합니다.
         for sentence in required_sentences:
-            required_keywords.extend([word for word, tag in okt.pos(sentence.replace(" ","")) if tag in ["Noun", "Alpha"]])
+            required_keywords.extend([word for word, tag in okt.pos(sentence) if tag in ["Noun", "Alpha"]])
     if jd_optional:
         # 지원자격의 문장을 줄바꿈으로 나눕니다.
         optional_sentences = jd_optional.split("\n")
         # 각 문장을 형태소 분석기로 분리하고, 명사와 영어만 키워드로 추출합니다.
         for sentence in optional_sentences:
-            optional_keywords.extend([word for word, tag in okt.pos(sentence.replace(" ","")) if tag in ["Noun", "Alpha"]])
+            optional_keywords.extend([word for word, tag in okt.pos(sentence) if tag in ["Noun", "Alpha"]])
     # 키워드들을 중복을 제거하고, 리스트로 반환합니다.
     required_keywords = list(set(required_keywords))
     optional_keywords = list(set(optional_keywords))
