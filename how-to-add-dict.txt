@@ -13,4 +13,3 @@ okt 폴더 안에서jar 압축
 jar cvf open-korean-text-2.1.0.jar .
 
 기존 jar 파일 대체
-
