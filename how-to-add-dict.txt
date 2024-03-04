@@ -1,0 +1,16 @@
+konlpy 위치
+.venv/lib/python3.11/site-packages/konlpy/java/open-korean-text-2.1.0.jar
+
+jar 압축해제
+jar xvf ../open-korean-text-2.1.0.jar
+
+사전 추가
+okt/org/openkoreantext/processor/util/noun/nouns.txt
+
+기존 jar 파일 제거
+
+okt 폴더 안에서jar 압축
+jar cvf open-korean-text-2.1.0.jar .
+
+기존 jar 파일 대체
+

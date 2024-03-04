@@ -69,13 +69,27 @@ def get_jds(segment):
 # 키워드에 해당하는 예상 질문 목록을 조회하는 함수를 정의합니다.
 def get_questions(keywords):
     # map 테이블에서 Search_Keyword가 키워드와 일치하는 Skill_ExperienceID와 Keyword를 조회합니다.
+
     map = client.table("match_map").select("*").execute().data
     map_dict = {item['skill_experienceid']: item for item in map}
+
     all_map = convert_to_tree(map, map_dict,False)
+    searched_map = filter_tree_data(convert_to_tree(map, map_dict,False),keywords)
     new_all_map = convert_to_tree(map, map_dict,True)
     # 결과에서 Skill_ExperienceID와 Keyword만 추출하여 딕셔너리로 반환합니다.
-    questions = {"all_map": all_map,"new_all_map":new_all_map,"searched_map": filter_tree_data(all_map,keywords), "map_dict" : map_dict}
-    return questions
+
+    questions_dict = {}
+    questions_dict["all_map"] = all_map.copy()
+    st.session_state.all_tree_data = all_map.copy()
+    questions_dict["new_all_map"] = new_all_map.copy()
+    st.session_state.new_all_tree_data = new_all_map.copy()
+    questions_dict["searched_map"] = searched_map.copy()
+    st.session_state.tree_data = searched_map.copy()
+    questions_dict["map_dict"] = map_dict.copy()
+
+    st.session_state.questions = questions_dict
+    return questions_dict
+
 
 
 # 채용공고의 우대조건과 지원자격을 키워드로 분리하는 함수를 정의합니다.
@@ -138,7 +152,7 @@ def check_same_id(checked):
   return result
 
 tail = {"not_question":"","experience": " 경험이 있나요?", "tool": " 업무상 활용 경험이 있나요?", "document": " 문서 작성 경험이 있나요?", "sector":" 업계에서의 프로젝트 또는 업무 경험이 있나요?", "startup":" 스타트업에서 프로젝트 또는 업무 경험이 있나요?"}
-def convert_to_tree(input_data, data_dict,new_tree:bool):
+def convert_to_tree(input_data, data_dict, new_tree:bool):
   # skill_experienceid를 키로 하고 나머지 정보를 값으로 하는 딕셔너리 생성
   # tree_data를 담을 빈 리스트 생성
   st.session_state.exist_id = []
@@ -226,7 +240,6 @@ segment = step1.radio("채용공고의 segment를 선택하세요.", segments)
 if step1.button("조회하기"):
     jds = get_jds(segment)
     st.session_state.jds = jds
-
 if "jds" in st.session_state:
     jds = st.session_state.jds
     step2.write("총 " + str(len(jds)) + "개의 공고가 있습니다.")
@@ -273,6 +286,7 @@ if "jds" in st.session_state:
     step3.write(jds[st.session_state.jd_idx]["location"])
     container = step3.container(border=True)
 
+
     # 채용공고의 우대조건과 지원자격을 키워드로 분리하는 함수를 호출하고, 결과를 리스트로 표시합니다.
     required_keywords, optional_keywords = get_keywords(jd_require, jd_optional)
     keywords = step3.multiselect("공고 검색어:", required_keywords + optional_keywords, key="keywords")
@@ -310,7 +324,8 @@ if "jds" in st.session_state:
     container.markdown(highlighted_jd, unsafe_allow_html=True)
 
     if keywords:    
-        st.session_state.questions = get_questions(keywords)
+        # st.session_state.questions = get_questions(keywords)
+        get_questions(keywords)
         step3.divider()
 
         map_col1, map_col2, map_col3 = step3.columns(3)
@@ -318,9 +333,6 @@ if "jds" in st.session_state:
         # 테이블에서 예상 질문을 선택하면, 필수와 선택으로 구분하여 트리구조로 표시합니
         map_col1.write("검색을 통한 예상 질문입니다. (선택시, 자동 저장)")
         # Create nodes to display
-        st.session_state.tree_data = st.session_state.questions["searched_map"]
-        st.session_state.all_tree_data = st.session_state.questions["all_map"]
-        st.session_state.new_all_tree_data = st.session_state.questions["new_all_map"]
         tree_container = map_col1.container(border=True)
 
         map_col2.write("검색에 없을 경우, 신규 생성 전에 한번더 확인하세요. (선택시, 자동 저장)")
@@ -399,9 +411,6 @@ if "jds" in st.session_state:
                 st.session_state.all_checked = new_checked
                 st.session_state.all_tree_refresh = get_random_string(3)
                 st.rerun()
-            print(sorted(tree_selection["checked"]))
-            print(sorted(st.session_state.all_checked))
-            print(sorted(new_checked))
 
             if st.button("질문 저장"):
                 if save_jd_map(tree_selection["checked"]):
@@ -450,16 +459,14 @@ if "jds" in st.session_state:
                 save_jd_map([str(result.data[0]["skill_experienceid"])])
                 map_col3.success("하위 질문이 추가되었습니다.")
                 tree_selection["checked"] = []
-                st.session_state.questions = get_questions(keywords)
-                
-                st.session_state.tree_data = st.session_state.questions["searched_map"]
-                st.session_state.all_tree_data = st.session_state.questions["all_map"]
-                st.session_state.new_all_tree_data = st.session_state.questions["new_all_map"]
+                # st.session_state.questions = get_questions(keywords)
+                st.session_state.new_all_tree_data = []
+                st.session_state.new_all_expanded += temp
+
+                get_questions(keywords)
                 st.session_state.new_all_tree_refresh = get_random_string(3)
                 st.session_state.search_tree_refresh = get_random_string(3)
                 st.session_state.all_tree_refresh = get_random_string(3)
-                st.session_state.new_all_tree_data = []
-                st.session_state.new_all_expanded += temp
                 st.rerun()
             else:
                 map_col3.error("입력하지 않은 필드가 있습니다.")
