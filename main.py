@@ -150,7 +150,7 @@ def check_same_id(checked):
   # 결과 리스트를 반환합니다.
   return result
 
-tail = {"not_question":"","experience": " 경험이 있나요?", "tool": " 업무상 활용 경험이 있나요?", "document": " 문서 작성 경험이 있나요?", "sector":" 업계에서의 프로젝트 또는 업무 경험이 있나요?", "startup":" 스타트업에서 프로젝트 또는 업무 경험이 있나요?"}
+tail = {"not_question":"","experience": " 경험이 있나요?", "tool": " 업무상 활용 경험이 있나요?", "document": " 문서 작성 경험이 있나요?", "sector":" 업계에서의 프로젝트 또는 업무 경험이 있나요?", "startup":" 스타트업에서 프로젝트 또는 업무 경험이 있나요?", "not_exist":"이(가) 없나요?"}
 def convert_to_tree(input_data, data_dict, new_tree:bool):
   # skill_experienceid를 키로 하고 나머지 정보를 값으로 하는 딕셔너리 생성
   # tree_data를 담을 빈 리스트 생성
