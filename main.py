@@ -69,7 +69,6 @@ def get_jds(segment):
 # 키워드에 해당하는 예상 질문 목록을 조회하는 함수를 정의합니다.
 def get_questions(keywords):
     # map 테이블에서 Search_Keyword가 키워드와 일치하는 Skill_ExperienceID와 Keyword를 조회합니다.
-
     map = client.table("match_map").select("*").execute().data
     map_dict = {item['skill_experienceid']: item for item in map}
 
@@ -342,7 +341,7 @@ if "jds" in st.session_state:
         map_col3.write("하위/신규 질문을 추가하려면, 트리구조에서 간선이 1개(1촌 관계)인 상위 keyword를 선택하고, 아래의 입력창에 keyword를 작성하세요.")
         all_new_tree_container = map_col3.container(border=True)
         sub_question = map_col3.text_input("하위 keyword")
-        question_type = map_col3.radio("질문의 종류를 선택하세요.", ["not_question//"+"키워드아님.","experience//"+sub_question+" 경험이 있나요?", "tool//"+sub_question+", 업무상 활용 경험이 있나요?", "document//"+sub_question+" 문서 작성 경험이 있나요?", "sector//"+sub_question+" 업계에서의 프로젝트 또는 업무 경험이 있나요?", "startup//"+sub_question+" 스타트업에서 프로젝트 또는 업무 경험이 있나요?"])
+        question_type = map_col3.radio("질문의 종류를 선택하세요.", ["not_question//"+"키워드아님.","experience//"+sub_question+" 경험이 있나요?", "tool//"+sub_question+", 업무상 활용 경험이 있나요?", "document//"+sub_question+" 문서 작성 경험이 있나요?", "sector//"+sub_question+" 업계에서의 프로젝트 또는 업무 경험이 있나요?", "startup//"+sub_question+" 스타트업에서 프로젝트 또는 업무 경험이 있나요?", "not_exist//"+sub_question+"이(가) 없나요?"])
         def check_and_condition(checked):
             new_id = []
             for checked_id in [int(item.split("'")[0]) for item in checked if item.split("'")[0]!="0"]:

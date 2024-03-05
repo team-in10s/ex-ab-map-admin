@@ -2,3 +2,5 @@
 .env
 env.toml
 ngrok
+temp.*
+test.*
